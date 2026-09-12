@@ -158,6 +158,41 @@ function isStructuredFinanceQuestion(question: string) {
 
 const OUT_OF_DOMAIN_QUESTION = "I can only help with FinCoach features and personal finance topics, such as budgeting, saving, spending, transactions, goals, debt, investing basics, and your financial health.";
 
+function formatINRValue(value: number) {
+  return `₹${Math.round(value).toLocaleString("en-IN")}`;
+}
+
+function ensureSystematicAnswer(answer: string, question: string, intel: any) {
+  if (!intel || /^(hi|hii|hiii|hello|hey|heya|good morning|good afternoon|good evening|thanks|thank you|thx|appreciate it|who are you|what are you|what can you do|how can you help|help|bye|goodbye|see you|talk later)\b/i.test(question.trim())) {
+    return answer;
+  }
+
+  const hasTable = /\|[^\n]+\|[\s\S]*\|\s*-{2,}/.test(answer);
+  const hasStrategy = /STRATEGIC ANSWER|RECOMMENDATION|NEXT ACTION|NEXT ACTIONS?/i.test(answer);
+  const featureQuestion = /fincoach|finx|dashboard|financial scan|statement|upload|notification|profile|market analysis|where can i|how do i use|feature/i.test(question);
+  const sections: string[] = [];
+
+  if (featureQuestion) {
+    if (!hasTable) {
+      sections.push(`\n\nFEATURE GUIDE\n\n| FinCoach area | Purpose | Practical use |\n| --- | --- | --- |\n| Dashboard | Shows income, expenses, goals, health, and cash flow | Review this first to decide what needs attention |\n| Transactions | Stores and categorizes income and spending | Add or verify records so recommendations stay accurate |\n| Financial Scan | Extracts transactions from a bank statement | Upload a clear statement, review detected rows, then import verified items |\n| Goals | Tracks target amounts and deadlines | Add a target date so FinX can calculate required monthly savings |`);
+    }
+    if (!hasStrategy) sections.push("\n\nSTRATEGIC ANSWER\nUse the feature in this order: update your transactions, review the dashboard snapshot, inspect the relevant goal or category, then take one measurable action. FinX recommendations become more reliable as your imported data becomes more complete.\n\nNEXT ACTION\nOpen the feature mentioned in your question and complete its primary action, then refresh the dashboard to review the result.");
+    return `${answer}${sections.join("")}`;
+  }
+
+  const { overview, budgetSuggestions, recurringPayments, nextBestMove } = intel;
+  if (!hasTable) {
+    const budgetRows = budgetSuggestions.slice(0, 4).map((item: any) => `| ${item.category} | ${formatINRValue(item.currentMonthlyAvg)} | ${formatINRValue(item.suggestedBudget)} | ${formatINRValue(item.potentialMonthlySavings)} |`).join("\n");
+    sections.push(`\n\nCURRENT FINANCIAL SNAPSHOT\n\n| Metric | Current value | Meaning |\n| --- | ---: | --- |\n| Monthly income | ${formatINRValue(overview.monthlyIncome)} | Money recorded as received |\n| Monthly expenses | ${formatINRValue(overview.monthlyExpenses)} | Money recorded as spent |\n| Monthly surplus | ${formatINRValue(overview.monthlyIncome - overview.monthlyExpenses)} | Available before new allocations |\n| Savings rate | ${overview.savingsRate}% | Income retained after recorded expenses |\n${budgetRows ? `\nSAVING OPPORTUNITIES\n\n| Category | Current monthly average | Suggested budget | Potential monthly saving |\n| --- | ---: | ---: | ---: |\n${budgetRows}` : ""}`);
+  }
+  if (!hasStrategy) {
+    const surplus = Math.max(0, overview.monthlyIncome - overview.monthlyExpenses);
+    const commitments = recurringPayments.reduce((sum: number, item: any) => sum + Number(item.averageAmount || 0), 0);
+    sections.push(`\n\nSTRATEGIC ANSWER\n${nextBestMove.title}. Protect approximately ${formatINRValue(commitments)} for recurring commitments first, then direct a fixed share of the remaining ${formatINRValue(surplus)} toward emergency savings or the highest-priority goal. Start with the largest saving opportunity in the table and measure it for one month before making further changes.\n\nNEXT ACTION\nSet one category limit, schedule one automatic transfer after payday, and review the result after 30 days.\n\nNOTE\nThis is educational guidance based on recorded FinCoach data, not regulated financial advice.`);
+  }
+  return `${answer}${sections.join("")}`;
+}
+
 function isFinCoachDomainQuestion(question: string) {
   const financeOrAppTopic = /personal finance|financial|money|budget|saving|savings|spending|expense|income|salary|cash flow|debt|loan|emi|interest|invest|investment|stock|mutual fund|sip|tax|insurance|net worth|wealth|bank|account|transaction|merchant|subscription|recurring payment|payment|goal|financial health|fincoach|finx|dashboard|financial scan|statement|upload|scan|notification|profile/i;
   const unrelatedTopic = /\b(code|coding|program|programming|c\+\+|cpp|python|javascript|java|recursion|algorithm|homework|assignment|essay|recipe|sports|movie|music|politics|celebrity|game|gaming)\b/i;
@@ -260,15 +295,16 @@ export async function POST(request: Request) {
 
   try {
     const answer = await answerWithGemini(question, userId);
+    const intel = await computeComprehensiveIntelligence(userId).catch(() => null);
     return NextResponse.json({
-      answer,
+      answer: ensureSystematicAnswer(answer, question, intel),
       provider: process.env.GEMINI_API_KEY ? "gemini" : "local-intelligence",
     });
   } catch (error) {
     console.warn("FinX Gemini error, using intelligence engine fallback:", error);
     const intel = await computeComprehensiveIntelligence(userId).catch(() => null);
     return NextResponse.json({
-      answer: fallbackAnswer(question, intel),
+      answer: ensureSystematicAnswer(fallbackAnswer(question, intel), question, intel),
       provider: "local-fallback",
     });
   }
