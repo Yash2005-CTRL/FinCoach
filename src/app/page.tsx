@@ -1812,7 +1812,7 @@ export default function Home() {
         if (entry.isIntersecting) entry.target.classList.add("is-visible");
       });
     }, { threshold: 0.14, rootMargin: "0px 0px -8%" });
-    const registerTargets = (root: ParentNode) => root.querySelectorAll<HTMLElement>(".metric-card, .panel, .portfolio-summary, .sync-banner, .section-heading, .records-list, .quote-card, .stock-grid, .scan-panel, .entry-form").forEach((target) => {
+    const registerTargets = (root: ParentNode) => root.querySelectorAll<HTMLElement>(".metric-card, .sync-banner, .section-heading, .records-list, .quote-card, .stock-grid, .scan-panel, .entry-form").forEach((target) => {
       if (target.classList.contains("scroll-reveal")) return;
       target.classList.add("scroll-reveal");
       observer.observe(target);

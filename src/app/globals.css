@@ -481,9 +481,8 @@ body, .app-shell { background: #08172B; color: #F4F8FF; }
 .scroll-reveal:nth-child(2) { transition-delay: .06s; }
 .scroll-reveal:nth-child(3) { transition-delay: .12s; }
 .scroll-reveal:nth-child(4) { transition-delay: .18s; }
-.scroll-reveal:not(.is-visible) .cashflow-bars span { animation: none; transform: scaleY(0); }
-.scroll-reveal.is-visible .cashflow-bars span { animation: grow-height .8s cubic-bezier(.2,.8,.2,1) both; }
-.scroll-reveal.is-visible .cashflow-bars .expense-bar { animation-delay: .12s; }
+.cashflow-bars span { animation: grow-height .8s cubic-bezier(.2,.8,.2,1) both; }
+.cashflow-bars .expense-bar { animation-delay: .12s; }
 .scroll-reveal:not(.is-visible) .stock-graph polyline { stroke-dasharray: 1800; stroke-dashoffset: 1800; }
 .scroll-reveal.is-visible .stock-graph polyline { animation: draw-stock-line 1.4s ease-out both; }
 @keyframes draw-stock-line { to { stroke-dashoffset: 0; } }
