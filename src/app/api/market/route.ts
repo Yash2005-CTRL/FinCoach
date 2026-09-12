@@ -7,24 +7,64 @@ const trendingSymbols = [
   "SBIN.NS", "ITC.NS", "LT.NS", "BAJFINANCE.NS", "AAPL", "MSFT", "NVDA", "TSLA",
 ];
 
+const marketDataHeaders = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+  Accept: "application/json",
+  "Accept-Language": "en-US,en;q=0.9",
+};
+
 async function fetchQuote(symbol: string, range = "1d") {
   const chartSettings: Record<string, { range: string; interval: string }> = {
     "1d": { range: "1d", interval: "5m" }, "5d": { range: "5d", interval: "15m" }, "1mo": { range: "1mo", interval: "1h" },
     "6mo": { range: "6mo", interval: "1d" }, "1y": { range: "1y", interval: "1d" }, "5y": { range: "5y", interval: "1wk" }, max: { range: "max", interval: "1mo" },
   };
   const selectedRange = chartSettings[range] ?? chartSettings["1d"];
-  const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${selectedRange.range}&interval=${selectedRange.interval}`, { next: { revalidate: 300 } });
-  if (!response.ok) return null;
-  const payload = await response.json();
-  const result = payload.chart?.result?.[0];
-  const meta = result?.meta;
-  if (!meta?.regularMarketPrice) return null;
-  const price = Number(meta.regularMarketPrice);
-  const previousClose = Number(meta.previousClose ?? meta.chartPreviousClose ?? price);
-  const timestamps = Array.isArray(result.timestamp) ? result.timestamp : [];
-  const closes = result.indicators?.quote?.[0]?.close ?? [];
-  const history = timestamps.map((timestamp: number, index: number) => ({ time: new Date(timestamp * 1000).toISOString(), price: Number(closes[index]) })).filter((point: { price: number }) => Number.isFinite(point.price));
-  return { symbol, currency: meta.currency ?? "INR", exchange: meta.exchangeName ?? "Market", price, previousClose, change: price - previousClose, changePercent: previousClose ? ((price - previousClose) / previousClose) * 100 : 0, asOf: new Date().toISOString(), history };
+  const endpoints = [
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${selectedRange.range}&interval=${selectedRange.interval}`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${selectedRange.range}&interval=${selectedRange.interval}`,
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await fetch(endpoint, {
+        headers: marketDataHeaders,
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) continue;
+
+      const payload = await response.json();
+      const result = payload.chart?.result?.[0];
+      const meta = result?.meta;
+      const price = Number(meta?.regularMarketPrice ?? meta?.previousClose ?? meta?.chartPreviousClose);
+      if (!result || !meta || !Number.isFinite(price)) continue;
+
+      const previousClose = Number(meta.previousClose ?? meta.chartPreviousClose ?? price);
+      const timestamps = Array.isArray(result.timestamp) ? result.timestamp : [];
+      const closes = result.indicators?.quote?.[0]?.close ?? [];
+      const history = timestamps
+        .map((timestamp: number, index: number) => ({
+          time: new Date(timestamp * 1000).toISOString(),
+          price: Number(closes[index]),
+        }))
+        .filter((point: { price: number }) => Number.isFinite(point.price));
+
+      return {
+        symbol,
+        currency: meta.currency ?? "INR",
+        exchange: meta.exchangeName ?? "Market",
+        price,
+        previousClose,
+        change: price - previousClose,
+        changePercent: previousClose ? ((price - previousClose) / previousClose) * 100 : 0,
+        asOf: new Date().toISOString(),
+        history,
+      };
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }
 
 export async function GET(request: Request) {

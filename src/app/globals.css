@@ -812,6 +812,13 @@ body, .app-shell { background: #08172B; color: #F4F8FF; }
 .auth-shell:not(.light-mode) .auth-card input:-webkit-autofill,
 .auth-shell:not(.light-mode) .auth-card input:-webkit-autofill:hover,
 .auth-shell:not(.light-mode) .auth-card input:-webkit-autofill:focus { -webkit-text-fill-color: #F4F8FF; background-color: #08172B !important; border-color: #16C7B6; box-shadow: 0 0 0 1000px #08172B inset, 0 0 0 3px rgba(22, 199, 182, .2); caret-color: #F4F8FF; }
+.password-field-wrap { position: relative; width: 100%; }
+.password-field-wrap input { padding-right: 52px; width: 100%; }
+.password-toggle { align-items: center; background: rgba(16, 35, 60, .72); border: 1px solid rgba(22, 199, 182, .35); border-radius: 8px; color: #D7E3F3; cursor: pointer; display: inline-flex; height: 30px; justify-content: center; padding: 0 8px; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 34px; z-index: 2; }
+.password-toggle:hover { background: rgba(22, 199, 182, .12); border-color: rgba(22, 199, 182, .7); color: #16C7B6; }
+.password-toggle:focus-visible { outline: 2px solid rgba(22, 199, 182, .7); outline-offset: 2px; }
+.light-mode .password-toggle { background: rgba(245, 247, 243, .96); border-color: rgba(120, 173, 141, .6); color: #52635A; }
+.light-mode .password-toggle:hover { background: rgba(120, 173, 141, .12); color: #1E6149; }
 .auth-shell:not(.light-mode) .auth-forgot, .auth-shell:not(.light-mode) .auth-switch { color: #16C7B6; }
 .auth-shell:not(.light-mode) .auth-note { color: #91A5BD; }
 .auth-shell.light-mode { background: radial-gradient(circle at 20% 10%, #E4F0E8, transparent 35%), #F5F7F3; color: #172321; }
