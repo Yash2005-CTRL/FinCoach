@@ -2,10 +2,20 @@ import { jwtVerify, SignJWT } from "jose";
 import { cookies } from "next/headers";
 
 const cookieName = "fincoach_session";
+const fallbackDevSecret = "fincoach-local-development-secret-change-before-deploy-2026";
 
 function secret() {
-  const value = process.env.AUTH_SECRET;
-  if (!value || value.length < 32) throw new Error("AUTH_SECRET must contain at least 32 characters");
+  const value = process.env.AUTH_SECRET ?? (process.env.NODE_ENV !== "production" ? fallbackDevSecret : undefined);
+
+  if (!value || value.length < 32) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("AUTH_SECRET must contain at least 32 characters");
+    }
+
+    console.warn("AUTH_SECRET missing, using local-development fallback. Set a secure AUTH_SECRET in .env.local for production-like environments.");
+    return new TextEncoder().encode(fallbackDevSecret);
+  }
+
   return new TextEncoder().encode(value);
 }
 
